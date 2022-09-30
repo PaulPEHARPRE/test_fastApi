@@ -1,11 +1,13 @@
-from fastapi import Depends, status, HTTPException
+from datetime import datetime, timedelta
+
+from fastapi import Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer
 from jose import JWTError, jwt
-from models import User, UserInDB, TokenData
 from passlib.context import CryptContext
-from datetime import datetime, timedelta
-from fake_db import fake_users_db
+from basic_oauth2_cookie_class import oauth2_scheme
 
+from fake_db import fake_users_db
+from models import TokenData, User, UserInDB
 
 # to get a string like this run:
 # openssl rand -hex 32
@@ -14,7 +16,6 @@ ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 30
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
-oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
 
 def verify_password(plain_password, hashed_password):
     return pwd_context.verify(plain_password, hashed_password)
