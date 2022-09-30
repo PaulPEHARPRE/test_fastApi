@@ -5,14 +5,15 @@ from fastapi.security import OAuth2PasswordBearer
 from jose import JWTError, jwt
 from passlib.context import CryptContext
 from basic_oauth2_cookie_class import oauth2_scheme
+from config import config_env
 
 from fake_db import fake_users_db
 from models import TokenData, User, UserInDB
 
 # to get a string like this run:
 # openssl rand -hex 32
-SECRET_KEY = "b41ad9cdbe07e5e451367cf3a64b2c05b1907a078dd4903feefc69646a780503"
-ALGORITHM = "HS256"
+SECRET_KEY = config_env["SECRET_KEY"]
+ALGORITHM = config_env["ALGORITHM"]
 ACCESS_TOKEN_EXPIRE_MINUTES = 30
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
