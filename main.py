@@ -1,15 +1,11 @@
 import uvicorn
 from fastapi import Depends, FastAPI, HTTPException, status
 from fastapi.encoders import jsonable_encoder
-from fastapi.openapi.docs import get_swagger_ui_html
-from fastapi.openapi.utils import get_openapi
 from fastapi.security import OAuth2PasswordRequestForm
 from starlette.responses import JSONResponse, RedirectResponse
 from config import config_env
-from authentication_methods import (ACCESS_TOKEN_EXPIRE_MINUTES,
-                                    authenticate_user, create_access_token,
+from src.authentication_methods import (ACCESS_TOKEN_EXPIRE_MINUTES, create_access_token,
                                     get_current_user_email, get_password_hash, timedelta, verify_password)
-from fake_db import fake_users_db
 from src.models import Token, User, UserLogin, UserPostgress, UserInDB
 from src.schemas import CreateUserRequest
 from sqlalchemy.orm import Session

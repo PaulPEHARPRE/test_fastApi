@@ -10,7 +10,7 @@ from sqlalchemy.orm import Session
 from src.database import get_db
 from src.models import UserPostgress
 
-from fake_db import fake_users_db
+
 from models import TokenData, User, UserInDB
 
 # to get a string like this run:
@@ -29,19 +29,6 @@ def verify_password(plain_password, hashed_password):
 
 def get_password_hash(password):
     return pwd_context.hash(password)
-
-
-def get_user(email: str, db: Session = Depends(get_db)):
-    return UserInDB(**userDBObject.__dict__)
-
-
-def authenticate_user(user: UserPostgress, password: str):
-    print(user)
-    if not user:
-        return False
-    if not verify_password(password, user.password):
-        return False
-    return user
 
 
 def create_access_token(data: dict, expires_delta: timedelta | None = None):
@@ -66,7 +53,6 @@ async def get_current_user_email(token: str = Depends(oauth2_scheme)):
         email: str = payload.get("sub")
         if email is None:
             raise credentials_exception
-        token_data = TokenData(email=email)
     except JWTError:
         raise credentials_exception
     return email
