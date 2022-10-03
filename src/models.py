@@ -26,8 +26,8 @@ class Token(BaseModel):
     token_type: str
 
 class TokenData(BaseModel):
-    username: str | None = None
+    email: str | None = None
 
 class UserLogin(BaseModel):
-    username: str
+    email: str
     password: str

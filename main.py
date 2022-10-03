@@ -1,19 +1,16 @@
-import base64
-from typing import Union
-
 import uvicorn
 from fastapi import Depends, FastAPI, HTTPException, status
 from fastapi.encoders import jsonable_encoder
 from fastapi.openapi.docs import get_swagger_ui_html
 from fastapi.openapi.utils import get_openapi
 from fastapi.security import OAuth2PasswordRequestForm
-from starlette.responses import JSONResponse, RedirectResponse, Response
+from starlette.responses import JSONResponse, RedirectResponse
 from config import config_env
 from authentication_methods import (ACCESS_TOKEN_EXPIRE_MINUTES,
                                     authenticate_user, create_access_token,
-                                    get_current_active_user, timedelta)
+                                    get_current_user_email, get_password_hash, timedelta, verify_password)
 from fake_db import fake_users_db
-from src.models import Token, User, UserLogin, UserPostgress
+from src.models import Token, User, UserLogin, UserPostgress, UserInDB
 from src.schemas import CreateUserRequest
 from sqlalchemy.orm import Session
 from src.database import get_db
@@ -25,39 +22,42 @@ def root():
     return "server up and running..."
 
 @app.post("/token", response_model=Token)
-async def login_for_access_token(form_data: OAuth2PasswordRequestForm = Depends()):
-    user = authenticate_user(fake_users_db, form_data.username, form_data.password)
-    if not user:
+async def login_for_access_token(form_data: OAuth2PasswordRequestForm = Depends(), db: Session = Depends(get_db)):
+    userDBObject = db.query(UserPostgress).filter(UserPostgress.email == form_data.username).first()
+    if not userDBObject:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Incorrect username or password",
             headers={"WWW-Authenticate": "Bearer"},
         )
+    userDB = userDBObject.__dict__
     access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
     access_token = create_access_token(
-        data={"sub": user.username}, expires_delta=access_token_expires
+        data={"sub": userDB["email"]}, expires_delta=access_token_expires
     )
     return {"access_token": access_token, "token_type": "bearer"}
 
 @app.get("/users/me")
-async def read_users_me(current_user: User = Depends(get_current_active_user)):
-    return current_user
+async def read_users_me(current_user_email: User = Depends(get_current_user_email), db: Session = Depends(get_db)):
+    userDBObject = db.query(UserPostgress).filter(UserPostgress.email == current_user_email).first()
+    return {"email": userDBObject.__dict__["email"]}
 
 @app.post("/login")
-async def login_basic(data: UserLogin):
+async def login_basic(data: UserLogin, db: Session = Depends(get_db)):
     try:
-        user = authenticate_user(fake_users_db, data.username, data.password)
-        if not user:
-            raise HTTPException(status_code=404, detail="Incorrect email or password")
+        userDBObject = db.query(UserPostgress).filter(UserPostgress.email == data.email).first() 
+        if not userDBObject:
+            raise HTTPException(status_code=404, detail="Incorrect email")
+        userDB = userDBObject.__dict__
+        if not verify_password(data.password, userDB["password"]):
+            raise HTTPException(status_code=404, detail="Incorrect password")        
         access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
         access_token = create_access_token(
-            data={"sub": data.username}, expires_delta=access_token_expires
+            data={"sub": data.email}, expires_delta=access_token_expires
         )
-
+        print('test au ch')
         token = jsonable_encoder(access_token)
-        print(type(user.__dict__))
-        print(type({"message": "Come to the dark side, we have cookies"}))
-        response = JSONResponse(content = user.__dict__)
+        response = JSONResponse(content = {"email": userDB["email"]})
         response.set_cookie(
             key="Authorization",
             value=f"Bearer {token}",
@@ -77,11 +77,15 @@ async def route_logout_and_remove_cookie():
     return response
 
 
-@app.post("/user")
+@app.post("/create_user")
 def create(details: CreateUserRequest, db: Session = Depends(get_db)):
+    userDBObject = db.query(UserPostgress).filter(UserPostgress.email == details.email).first() 
+    if userDBObject:
+        raise HTTPException(status_code=404, detail="Email already exists")
+    hashedPassword = get_password_hash(details.password)
     to_create = UserPostgress(
         email=details.email,
-        password=details.password
+        password=hashedPassword
     )
     db.add(to_create)
     db.commit()
