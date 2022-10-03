@@ -13,7 +13,10 @@ from authentication_methods import (ACCESS_TOKEN_EXPIRE_MINUTES,
                                     authenticate_user, create_access_token,
                                     get_current_active_user, timedelta)
 from fake_db import fake_users_db
-from models import Token, User, UserLogin
+from src.models import Token, User, UserLogin, UserPostgress
+from src.schemas import CreateUserRequest
+from sqlalchemy.orm import Session
+from src.database import get_db
 
 app = FastAPI()
 
@@ -72,6 +75,20 @@ async def route_logout_and_remove_cookie():
     response = RedirectResponse(url="/", status_code=302)
     response.delete_cookie("Authorization", domain=config_env["HOST"])
     return response
+
+
+@app.post("/user")
+def create(details: CreateUserRequest, db: Session = Depends(get_db)):
+    to_create = UserPostgress(
+        email=details.email,
+        password=details.password
+    )
+    db.add(to_create)
+    db.commit()
+    return { 
+        "success": True,
+        "created_id": to_create.id
+    }
 
 
 if __name__ == "__main__":

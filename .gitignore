@@ -1,1 +1,6 @@
+# Variable d'environnement
 .env
+makefile
+
+# Pycache
+__pycache__
